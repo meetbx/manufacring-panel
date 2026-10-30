@@ -48,18 +48,41 @@ export const ProductDetailsBuilder: React.FC<ProductDetailsBuilderProps> = ({ pr
       case "gallery":
         newBlock = { id: newId, type: "gallery", images: [] };
         break;
-      case "banner":
-        newBlock = { id: newId, type: "banner", imageUrl: "", title: "", subtitle: "" };
-        break;
+case "banner":
+  newBlock = {
+    id: newId,
+    type: "banner",
+    imageUrl: "",
+    title: "",
+    subtitle: "",
+    link: "",
+  };
+  break;
       case "bullet_list":
         newBlock = { id: newId, type: "bullet_list", items: ["First bullet point"] };
         break;
-      case "image_text":
-        newBlock = { id: newId, type: "image_text", imageUrl: "", heading: "", text: "", imagePosition: "left" };
-        break;
-      case "text_image":
-        newBlock = { id: newId, type: "text_image", imageUrl: "", heading: "", text: "", imagePosition: "right" };
-        break;
+case "image_text":
+  newBlock = {
+    id: newId,
+    type: "image_text",
+    imageUrl: "",
+    heading: "",
+    text: "",
+    alt: "",
+    imagePosition: "left",
+  };
+  break;
+case "text_image":
+  newBlock = {
+    id: newId,
+    type: "text_image",
+    imageUrl: "",
+    heading: "",
+    text: "",
+    alt: "",
+    imagePosition: "right",
+  };
+  break;
       case "video":
         newBlock = { id: newId, type: "video", videoUrl: "", caption: "" };
         break;

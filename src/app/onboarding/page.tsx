@@ -184,7 +184,16 @@ export default function OnboardingPage() {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Company Logo</label>
-            <Uploader folder="companies" label="Upload Logo" onUploadComplete={(url) => setForm({ ...form, logo: url })} />
+            <Uploader
+  folder="companies"
+  label="Upload Logo"
+  onUploadComplete={(url) =>
+    setForm((prev) => ({
+      ...prev,
+      logo: Array.isArray(url) ? (url[0] ?? prev.logo) : url,
+    }))
+  }
+/>
             {form.logo && <p className="text-xs text-emerald-600 mt-1">Logo uploaded successfully</p>}
           </div>
 

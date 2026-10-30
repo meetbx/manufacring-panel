@@ -349,7 +349,19 @@ export default function NewProductPage() {
             <h2 className="text-lg font-semibold text-slate-900 border-b pb-2">Media & Assets</h2>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Product Images</label>
-              <Uploader folder="products" label="Upload Image" onUploadComplete={(url) => setForm((prev) => ({ ...prev, images: [...prev.images, url] }))} />
+    <Uploader
+  folder="products"
+  label="Upload Image"
+  onUploadComplete={(url) =>
+    setForm((prev) => ({
+      ...prev,
+      images: [
+        ...prev.images,
+        ...(Array.isArray(url) ? url : [url]),
+      ],
+    }))
+  }
+/>
               <div className="flex flex-wrap gap-2 mt-3">
                 {form.images.map((img, i) => (
                   <div key={i} className="relative group">
