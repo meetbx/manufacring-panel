@@ -1,0 +1,450 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String               @id @default(cuid())
+  name                    String?
+  email                   String?              @unique
+  emailVerified           DateTime?
+  image                   String?
+  role                    UserRole             @default(BUYER)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  passwordHash            String?
+  phone                   String?              @unique
+  phoneVerifiedAt         DateTime?
+  accounts                Account[]
+  buyerConversations      Conversation[]
+  manufacturerMemberships ManufacturerMember[]
+  manufacturerReviews     ManufacturerReview[]
+  sentMessages            Message[]
+  searchHistory           SearchHistory[]
+  sessions                Session[]
+  wishlists               Wishlist[]
+  notifications           Notification[]
+  userPreferences         UserPreference?
+
+  @@index([phone])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Location {
+  id            String         @id @default(cuid())
+  state         String         @unique
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  manufacturers Manufacturer[]
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  icon      String?
+  parentId  String?    
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  children  Category[] @relation("CategoryHierarchy")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  products  Product[]
+
+  @@index([parentId])
+}
+
+model Manufacturer {
+  id                 String                      @id @default(cuid())
+  name               String
+  slug               String                      @unique
+  description        String?
+  phone              String?                     // <-- Add phone column here
+  gstNumber          String?                     @unique
+  isVerified         Boolean                     @default(true)
+  certifications     String[]
+  logo               String?
+  bannerImage        String?
+  machineImages      String[]
+  addressLine        String
+  city               String
+  pincode            String
+  locationId         String
+  yearEstablished    Int?
+  factoryAreaSqFt    Int?
+  annualTurnover     String?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  onTimeDispatchRate Float?
+  responseTimeHours  Int?
+  rndEngineers       Int?
+  mainMarkets        Json?                       @default("[]")
+  badge              BadgeType                   @default(NONE)
+  conversations      Conversation[]
+  location           Location                    @relation(fields: [locationId], references: [id])
+  certificationsList ManufacturerCertification[]
+  members            ManufacturerMember[]
+  reviews            ManufacturerReview[]
+  products           Product[]
+
+  @@index([locationId])
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model Product {
+  id                    String          @id @default(cuid())
+  name                  String
+  slug                  String          @unique
+  description           String?
+  images                String[]
+  minPrice              Float
+  maxPrice              Float
+  moq                   Int
+  unit                  String          @default("Piece")
+  priceTiers            Json?
+  specifications        Json?
+  hsCode                String?
+  leadTimeDays          Int?            @default(7)
+  inStock               Boolean         @default(true)
+  categoryId            String
+  manufacturerId        String
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  sample_price          Decimal?        @db.Decimal(12, 2)
+  is_sample_available   Boolean?        @default(false)
+  total_sold            Int?            @default(0)
+  customization_options Json?           @default("[]")
+  service_guarantees    Json?           @default("[]")
+  videoUrl              String?
+  protectionEligible    Boolean?        @default(true)
+  shippingOrigin        String?
+  shippingPorts         String[]
+  isPublished           Boolean         @default(true)
+  productDetails        Json?           @default("[]")
+  conversations         Conversation[]
+  category              Category        @relation(fields: [categoryId], references: [id])
+  manufacturer          Manufacturer    @relation(fields: [manufacturerId], references: [id])
+  ProductReview         ProductReview[]
+  wishlists             Wishlist[]
+
+  @@index([manufacturerId])
+  @@index([categoryId])
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "Product_description_trgm_idx", type: Gin)
+  @@index([isPublished])
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "Product_name_trgm_idx", type: Gin)
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "idx_product_name_trgm", type: Gin)
+  @@index([specifications], map: "idx_product_specifications_gin", type: Gin)
+  
+}
+
+model ProductReview {
+  id                 String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  productId          String
+  buyerName          String
+  buyerCountry       String?  @default("IN")
+  rating             Int
+  serviceRating      Float?
+  shippingRating     Float?
+  qualityRating      Float?
+  comment            String?
+  isVerifiedPurchase Boolean? @default(false)
+  isRepeatBuyer      Boolean? @default(false)
+  createdAt          DateTime @default(now())
+  Product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model categories {
+  id                       String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id                String?                    @db.Uuid
+  name                     String                     @db.VarChar(255)
+  slug                     String                     @unique @db.VarChar(255)
+  description              String?
+  image_url                String?                    @db.VarChar(500)
+  icon_url                 String?                    @db.VarChar(500)
+  sort_order               Int?                       @default(0)
+  is_active                Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  categories               categories?                @relation("categoriesTocategories", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_categories         categories[]               @relation("categoriesTocategories")
+  category_banners         category_banners[]
+  category_recommendations category_recommendations[]
+  product_categories       product_categories[]
+
+  @@index([is_active, sort_order], map: "idx_categories_is_active_sort")
+}
+
+model category_banners {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id String     @db.Uuid
+  title       String?    @db.VarChar(255)
+  subtitle    String?    @db.VarChar(255)
+  image_url   String     @db.VarChar(500)
+  link_url    String?    @db.VarChar(500)
+  sort_order  Int?       @default(0)
+  is_active   Boolean?   @default(true)
+  created_at  DateTime?  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?  @default(now()) @db.Timestamptz(6)
+  categories  categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_active, sort_order], map: "idx_category_banners_active_sort")
+}
+
+model category_recommendations {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id String     @db.Uuid
+  name        String     @db.VarChar(255)
+  target_slug String     @db.VarChar(255)
+  image_url   String     @db.VarChar(500)
+  badge_text  String?    @db.VarChar(50)
+  sort_order  Int?       @default(0)
+  is_active   Boolean?   @default(true)
+  created_at  DateTime?  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?  @default(now()) @db.Timestamptz(6)
+  categories  categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_active, sort_order], map: "idx_category_recs_active_sort")
+}
+
+model product_categories {
+  product_id  String     @db.Uuid
+  category_id String     @db.Uuid
+  categories  categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([product_id, category_id])
+  @@index([category_id], map: "idx_product_categories_category_id")
+}
+
+model ManufacturerMember {
+  id             String       @id @default(cuid())
+  manufacturerId String
+  userId         String
+  role           String       @default("OWNER")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, manufacturerId])
+}
+
+model ManufacturerCertification {
+  id             String       @id @default(cuid())
+  manufacturerId String
+  name           String
+  issueDate      DateTime?
+  expiryDate     DateTime?
+  isVerified     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  certificateUrl String?
+  issuedBy       String?
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@index([manufacturerId])
+}
+
+model ManufacturerReview {
+  id             String       @id @default(cuid())
+  manufacturerId String
+  rating         Int
+  createdAt      DateTime     @default(now())
+  comment        String?
+  userId         String?
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Conversation {
+  id             String       @id @default(cuid())
+  buyerId        String
+  manufacturerId String
+  productId      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  lastMessageAt  DateTime     @default(now())
+  buyer          User         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  product        Product?     @relation(fields: [productId], references: [id])
+  messages       Message[]
+
+@@unique([buyerId, manufacturerId])
+  @@index([buyerId, lastMessageAt(sort: Desc)])
+  @@index([manufacturerId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  attachments    Attachment[]
+
+  @@index([conversationId, createdAt])
+}
+
+model Attachment {
+  id         String         @id @default(cuid())
+  messageId  String
+  message    Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileUrl    String         // Cloudinary storage URL
+  fileName   String         // Original file name
+  fileSize   Int            // Size in bytes
+  mimeType   String         // e.g., image/jpeg, application/pdf
+  type       AttachmentType // IMAGE or PDF
+  createdAt  DateTime       @default(now())
+
+  @@index([messageId])
+}
+
+model CategoryProductRanking {
+  id         String   @id @default(cuid())
+  categoryId String
+  productId  String
+  position   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  updatedBy  String?
+
+  @@unique([categoryId, productId])
+  @@index([categoryId, position])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reporterId  String
+  entityType  String
+  entityId    String
+  reason      String
+  description String?
+  status      String   @default("OPEN")
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model OtpChallenge {
+  id         String    @id
+  phone      String
+  purpose    String
+  attempts   Int       @default(0)
+  verifiedAt DateTime?
+  consumedAt DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, purpose, consumedAt])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // e.g., 'CHAT_MESSAGE', 'RFQ_INQUIRY'
+  title     String
+  message   String
+  url       String?  // Optional destination URL
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model UserPreference {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferredCategories String[] @default([])
+  preferredMaterials  String[] @default([])
+  preferredLocation   String?
+  buyingInterests     String?
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum UserRole {
+  BUYER
+  MANUFACTURER
+  ADMIN
+}
+
+enum BadgeType {
+  DIAMOND
+  GOLD
+  SILVER
+  NONE
+}
+
+enum AttachmentType {
+  IMAGE
+  PDF
+}
