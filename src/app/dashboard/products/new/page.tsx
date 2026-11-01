@@ -109,9 +109,9 @@ export default function NewProductPage() {
   };
 
   // --- Submit Handler ---
-  const handleSubmit = async (isPublished: boolean) => {
-    if (form.maxPrice < form.minPrice) {
-      setError("Maximum price cannot be lower than minimum price.");
+const handleSubmit = async (isPublished: boolean) => {
+    if (form.priceTiers.length === 0 || form.priceTiers.length > 3) {
+      setError("Please add between 1 and 3 wholesale price tiers.");
       return;
     }
     if (!form.categoryId) {
@@ -122,7 +122,7 @@ export default function NewProductPage() {
     setError("");
     setLoadingAction(isPublished ? "PUBLISH" : "DRAFT");
 
-    // Convert array [{ name: "Coating", value: "Zinc Plated" }] into object { "Coating": "Zinc Plated" }
+    // Convert specifications array into an object for Prisma JSON field
     const specificationsObject = form.specifications.reduce((acc, spec) => {
       const key = spec.name.trim();
       const val = spec.value.trim();
@@ -134,7 +134,9 @@ export default function NewProductPage() {
 
     const payload = {
       ...form,
-      specifications: specificationsObject, // Saves clean object structure to DB
+      minPrice: form.minPrice,
+      maxPrice: form.minPrice, // Keeps database schema happy without showing a price range
+      specifications: specificationsObject,
       isPublished,
     };
 
@@ -241,18 +243,25 @@ export default function NewProductPage() {
             </div>
           </section>
 
-          {/* Section B & C: Pricing, MOQ, Tier Pricing */}
+{/* Section B & C: Pricing, MOQ, Tier Pricing */}
           <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
             <h2 className="text-lg font-semibold text-slate-900 border-b pb-2">Pricing & Order Details</h2>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Min Price (₹) *</label>
-                <input type="number" min="0" required value={form.minPrice} onChange={(e) => setForm({ ...form, minPrice: Number(e.target.value) })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Max Price (₹) *</label>
-                <input type="number" min="0" required value={form.maxPrice} onChange={(e) => setForm({ ...form, maxPrice: Number(e.target.value) })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Base Unit Price (₹) *</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  required 
+                  value={form.minPrice} 
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setForm({ ...form, minPrice: val, maxPrice: val });
+                  }} 
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
+                  placeholder="e.g. 30" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Unit *</label>
@@ -272,12 +281,36 @@ export default function NewProductPage() {
               </div>
             </div>
 
-            {/* Wholesale Tier Pricing */}
+            {/* Wholesale Tier Pricing (Min 1, Max 3 Tiers) */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="block text-sm font-medium text-slate-700">Wholesale Tier Pricing</label>
-                <button type="button" onClick={addTier} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"><Plus className="w-3 h-3"/> Add Tier</button>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Wholesale Tier Pricing</label>
+                  <p className="text-xs text-slate-400">Add 1 to 3 pricing tiers for volume discounts</p>
+                </div>
+                {form.priceTiers.length < 3 && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (form.priceTiers.length < 3) addTier();
+                    }} 
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3"/> Add Tier ({form.priceTiers.length}/3)
+                  </button>
+                )}
               </div>
+
+              {form.priceTiers.length === 0 && (
+                <button
+                  type="button"
+                  onClick={addTier}
+                  className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-xs font-medium text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors"
+                >
+                  + Add First Price Tier (Required)
+                </button>
+              )}
+
               {form.priceTiers.map((tier, i) => (
                 <div key={i} className="flex gap-4 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
                   <div className="flex-1">
@@ -285,10 +318,12 @@ export default function NewProductPage() {
                     <input type="number" min="1" value={tier.minQty} onChange={(e) => updateTier(i, "minQty", Number(e.target.value))} className="w-full px-3 py-1 border rounded text-sm" />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs text-slate-500 block mb-1">Price (₹)</label>
+                    <label className="text-xs text-slate-500 block mb-1">Price per unit (₹)</label>
                     <input type="number" min="0" value={tier.price} onChange={(e) => updateTier(i, "price", Number(e.target.value))} className="w-full px-3 py-1 border rounded text-sm" />
                   </div>
-                  <button type="button" onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 mt-5"><Trash2 className="w-4 h-4" /></button>
+                  {form.priceTiers.length > 1 && (
+                    <button type="button" onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 mt-5"><Trash2 className="w-4 h-4" /></button>
+                  )}
                 </div>
               ))}
             </div>
