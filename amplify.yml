@@ -1,4 +1,3 @@
-
 version: 1
 
 frontend:
@@ -9,8 +8,64 @@ frontend:
 
     build:
       commands:
-        - 'test -n "$NEXTAUTH_SECRET" || (echo "NEXTAUTH_SECRET is missing from Amplify environment variables" && exit 1)'
-        - 'printf "NEXTAUTH_SECRET=%s\nNEXTAUTH_URL=%s\n" "$NEXTAUTH_SECRET" "$NEXTAUTH_URL" > .env.production'
+        # Make Gen 1 SSM secrets and normal Amplify variables available to Next.js SSR.
+        - |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          let ssmSecrets = {};
+          if (process.env.secrets) {
+            try {
+              ssmSecrets = JSON.parse(process.env.secrets);
+            } catch {
+              console.error('Amplify process.env.secrets is not valid JSON. Check the SSM secret configuration.');
+              process.exit(1);
+            }
+          }
+
+          // Prefer encrypted Amplify Gen 1 SSM secrets; fall back to regular
+          // Amplify build variables for non-sensitive configuration/testing.
+          const readValue = (key) => {
+            const value = ssmSecrets[key] ?? process.env[key];
+            return typeof value === 'string' && value.length > 0 ? value : undefined;
+          };
+
+          const required = ['DATABASE_URL', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL'];
+          const optional = [
+            'NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME',
+            'CLOUDINARY_API_KEY',
+            'CLOUDINARY_API_SECRET',
+            'ABLY_API_KEY',
+          ];
+
+          const missing = required.filter((key) => !readValue(key));
+          if (missing.length > 0) {
+            console.error(`Missing required production configuration: ${missing.join(', ')}`);
+            console.error('For secret values, create Amplify Gen 1 SSM SecureString parameters under /amplify/<app-id>/<branch>/<KEY>.');
+            process.exit(1);
+          }
+
+          const configured = [...required, ...optional]
+            .map((key) => [key, readValue(key)])
+            .filter((entry) => entry[1] !== undefined);
+
+          const missingOptional = optional.filter((key) => !readValue(key));
+          if (missingOptional.length > 0) {
+            console.warn(`Optional integrations not configured (their features may not work): ${missingOptional.join(', ')}`);
+          }
+
+          const contents = configured
+            .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+            .join('\n') + '\n';
+
+          // .env is temporary for Prisma CLI; .env.production is read by Next.js
+          // for the production build and Amplify SSR runtime.
+          fs.writeFileSync('.env', contents, { mode: 0o600 });
+          fs.writeFileSync('.env.production', contents, { mode: 0o600 });
+          console.log(`Prepared ${configured.length} production variables for the build; values are hidden.`);
+          NODE
+        - npx prisma generate
+        - rm -f .env
         - npm run build
 
   artifacts:
@@ -21,4 +76,5 @@ frontend:
   cache:
     paths:
       - .npm/**/*
+      - node_modules/**/*
       - .next/cache/**/*
