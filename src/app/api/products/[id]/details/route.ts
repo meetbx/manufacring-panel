@@ -3,10 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// GET: Fetch rich product details (A+ blocks)
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,37 +13,35 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = params;
+    const resolvedParams = await params;
+    const { id } = resolvedParams;
+
+    if (!id) {
+      return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
+    }
 
     const product = await prisma.product.findUnique({
       where: { id },
-      select: {
-        id: true,
-        productDetails: true, // JSON field storing array of blocks
-      },
+      select: { productDetails: true },
     });
 
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      success: true,
-      data: product.productDetails || [],
+    return NextResponse.json({ 
+      success: true, 
+      blocks: Array.isArray(product.productDetails) ? product.productDetails : [] 
     });
   } catch (error) {
     console.error("[PRODUCT_DETAILS_GET_ERROR]", error);
-    return NextResponse.json(
-      { error: "Failed to fetch product details" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-// PUT: Save / update rich product details (A+ blocks)
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -52,32 +49,30 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = params;
-    const body = await req.json();
+    const resolvedParams = await params;
+    const { id } = resolvedParams;
 
-    // Expecting body to contain { blocks: [...] } or direct array of blocks
-    const blocks = Array.isArray(body) ? body : body.blocks || [];
+    if (!id) {
+      return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const blocks = Array.isArray(body?.blocks) ? body.blocks : [];
 
     const updatedProduct = await prisma.product.update({
       where: { id },
       data: {
         productDetails: blocks,
       },
-      select: {
-        id: true,
-        productDetails: true,
-      },
+      select: { productDetails: true },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedProduct.productDetails,
+    return NextResponse.json({ 
+      success: true, 
+      blocks: updatedProduct.productDetails || [] 
     });
   } catch (error) {
     console.error("[PRODUCT_DETAILS_PUT_ERROR]", error);
-    return NextResponse.json(
-      { error: "Failed to update product details" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

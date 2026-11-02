@@ -36,7 +36,7 @@ export default function EditProductPage() {
         const data = await res.json();
         const rawProduct = data.data || data;
 
-        // Transform specs object back into array format for UI editing if needed
+        // Transform specs object back into array format for UI editing
         const specsArray: Spec[] = rawProduct.specifications
           ? Object.entries(rawProduct.specifications).map(([name, value]) => ({
               name,
@@ -44,15 +44,20 @@ export default function EditProductPage() {
             }))
           : [];
 
-        // Ensure priceTiers is parsed as an array
+        // Ensure priceTiers and productDetails are parsed correctly as arrays
         const tiersArray: Tier[] = Array.isArray(rawProduct.priceTiers)
           ? rawProduct.priceTiers
+          : [];
+
+        const detailsArray = Array.isArray(rawProduct.productDetails)
+          ? rawProduct.productDetails
           : [];
 
         setForm({
           ...rawProduct,
           specifications: specsArray,
           priceTiers: tiersArray,
+          productDetails: detailsArray,
         });
       } catch (err: any) {
         console.error("Error fetching product:", err);
@@ -126,7 +131,6 @@ export default function EditProductPage() {
     setSaving(true);
 
     try {
-      // Convert specifications array back into a key-value record object
       const specificationsObject = form.specifications.reduce((acc: any, spec: Spec) => {
         const key = spec.name.trim();
         const val = spec.value.trim();
@@ -139,8 +143,9 @@ export default function EditProductPage() {
       const payload = {
         ...form,
         minPrice: form.minPrice,
-        maxPrice: form.minPrice, // Keeps single base price synced to schema
+        maxPrice: form.minPrice,
         specifications: specificationsObject,
+        productDetails: form.productDetails || [],
       };
 
       const res = await fetch(`/api/products/${productId}`, {
@@ -285,7 +290,7 @@ export default function EditProductPage() {
             </div>
           </div>
 
-          {/* Wholesale Tier Pricing (1 to 3 tiers) */}
+          {/* Wholesale Tier Pricing */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <div>
@@ -435,11 +440,23 @@ export default function EditProductPage() {
       </form>
 
       {/* Rich Product Details Builder (A+ Content) */}
+{/* Rich Product Details Builder (A+ Content) */}
       <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
         <h2 className="text-lg font-semibold text-slate-800 border-b pb-2">
           Rich Product Details Content (A+ Content)
         </h2>
-        {productId && <ProductDetailsBuilder productId={productId} />}
+        {productId && (
+          <ProductDetailsBuilder 
+            productId={productId} 
+            initialBlocks={form?.productDetails || []}
+            onChange={(updatedBlocks: any) => {
+              setForm((prev: any) => ({
+                ...prev,
+                productDetails: updatedBlocks,
+              }));
+            }}
+          />
+        )}
       </section>
     </div>
   );

@@ -72,6 +72,7 @@ export async function PUT(
         images: body.images || [],
         priceTiers: body.priceTiers || [], // Fixes pricing tier persistence bug
         specifications: body.specifications || {},
+        productDetails: body.productDetails || [],
         customization_options: body.customization_options || [],
         service_guarantees: body.service_guarantees || [],
         shippingPorts: body.shippingPorts || [],
