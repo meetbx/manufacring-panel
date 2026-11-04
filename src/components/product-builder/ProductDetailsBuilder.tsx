@@ -6,6 +6,9 @@ import { BlockEditor } from "./BlockEditors";
 
 interface ProductDetailsBuilderProps {
   productId: string;
+  initialBlocks?: any[];
+  onChange: (blocks: any[]) => void;
+
 }
 
 export const ProductDetailsBuilder: React.FC<ProductDetailsBuilderProps> = ({ productId }) => {
