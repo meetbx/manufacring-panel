@@ -1,8 +1,18 @@
 // src/app/api/products/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Changed to named import { prisma }
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // Adjust to match your NextAuth config path
+import { authOptions } from "@/lib/auth";
+
+// Helper utility to sanitize and format custom SEO slugs/keywords
+const formatSlug = (text: string) => {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "") // Remove special characters
+    .replace(/[\s_-]+/g, "-") // Convert spaces/underscores to hyphens
+    .replace(/^-+|-+$/g, "");  // Trim leading/trailing hyphens
+};
 
 export async function POST(req: Request) {
   try {
@@ -54,9 +64,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Selected category does not exist." }, { status: 400 });
     }
 
-    // 4. Generate Safe Unique Slug
-    const baseSlug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    const uniqueSlug = `${baseSlug}-${Date.now()}`;
+    // 4. Generate Clean & Unique SEO Slug (Supports manual custom slug / search keywords or auto-generates from name)
+    let baseSlug = body.slug ? formatSlug(body.slug) : formatSlug(body.name);
+    
+    if (!baseSlug) {
+      baseSlug = `product-${Date.now()}`;
+    }
+
+    let uniqueSlug = baseSlug;
+    
+    // Check for existing slug collisions to ensure absolute uniqueness
+    const existingSlug = await prisma.product.findUnique({
+      where: { slug: uniqueSlug },
+    });
+
+    if (existingSlug) {
+      uniqueSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    }
 
     // 5. Create the Product Record
     const product = await prisma.product.create({
@@ -108,7 +132,6 @@ export async function POST(req: Request) {
   }
 }
 
-// Add this below your POST export in src/app/api/products/route.ts
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
