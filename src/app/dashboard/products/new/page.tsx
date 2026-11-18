@@ -42,32 +42,28 @@ export default function NewProductPage() {
     images: [] as string[],
   });
 
+  const [isSlugManual, setIsSlugManual] = useState(false);
 
-const [isSlugManual, setIsSlugManual] = useState(false);
+  // Clean formatting function (run only when leaving the input or submitting)
+  const formatSlug = (text: string) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "") // Removes special characters
+      .replace(/[\s_-]+/g, "-") // Converts spaces and underscores to hyphens
+      .replace(/^-+|-+$/g, "");  // Trims leading/trailing hyphens
+  };
 
-// Clean formatting function (run only when leaving the input or submitting)
-const formatSlug = (text: string) => {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "") // Removes special characters
-    .replace(/[\s_-]+/g, "-") // Converts spaces and underscores to hyphens
-    .replace(/^-+|-+$/g, "");  // Trims leading/trailing hyphens
-};
+  // 1. Allow smooth typing without blocking spaces or dashes
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsSlugManual(true);
+    setForm((prev) => ({ ...prev, slug: e.target.value }));
+  };
 
-// 1. Allow smooth typing without blocking spaces or dashes
-const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  setIsSlugManual(true);
-  setForm((prev) => ({ ...prev, slug: e.target.value }));
-};
-
-// 2. Format and clean up the slug only when the user clicks away (onBlur)
-const handleSlugBlur = () => {
-  setForm((prev) => ({ ...prev, slug: formatSlug(prev.slug) }));
-};
-
-
-
+  // 2. Format and clean up the slug only when the user clicks away (onBlur)
+  const handleSlugBlur = () => {
+    setForm((prev) => ({ ...prev, slug: formatSlug(prev.slug) }));
+  };
 
   const [loadingAction, setLoadingAction] = useState<"DRAFT" | "PUBLISH" | null>(null);
   const [error, setError] = useState("");
@@ -86,9 +82,10 @@ const handleSlugBlur = () => {
   }, []);
 
   // --- Dynamic Field Handlers ---
-const addTier = () =>
-  setForm((prev) => ({ ...prev, priceTiers: [...prev.priceTiers, { minQty: "", price: "" }] }));
-  const updateTier = (index: number, field: keyof Tier, val: number) => {
+  const addTier = () =>
+    setForm((prev) => ({ ...prev, priceTiers: [...prev.priceTiers, { minQty: "", price: "" }] }));
+  
+const updateTier = (index: number, field: keyof Tier, val: number | "") => {
     setForm((prev) => ({
       ...prev,
       priceTiers: prev.priceTiers.map((tier, i) =>
@@ -96,13 +93,13 @@ const addTier = () =>
       ),
     }));
   };
+
   const removeTier = (index: number) =>
     setForm((prev) => ({ ...prev, priceTiers: prev.priceTiers.filter((_, i) => i !== index) }));
 
   const addSpec = () =>
     setForm((prev) => ({ ...prev, specifications: [...prev.specifications, { name: "", value: "" }] }));
   
-  // Fixed immutable updateSpec handler
   const updateSpec = (index: number, field: keyof Spec, val: string) => {
     setForm((prev) => ({
       ...prev,
@@ -118,6 +115,7 @@ const addTier = () =>
   const addStringItem = (field: "customization_options" | "service_guarantees" | "shippingPorts") => {
     setForm((prev) => ({ ...prev, [field]: [...prev[field], ""] }));
   };
+
   const updateStringItem = (
     field: "customization_options" | "service_guarantees" | "shippingPorts",
     index: number,
@@ -128,6 +126,7 @@ const addTier = () =>
       [field]: prev[field].map((item, i) => (i === index ? val : item)),
     }));
   };
+
   const removeStringItem = (
     field: "customization_options" | "service_guarantees" | "shippingPorts",
     index: number
@@ -136,7 +135,7 @@ const addTier = () =>
   };
 
   // --- Submit Handler ---
-const handleSubmit = async (isPublished: boolean) => {
+  const handleSubmit = async (isPublished: boolean) => {
     if (form.priceTiers.length === 0 || form.priceTiers.length > 3) {
       setError("Please add between 1 and 3 wholesale price tiers.");
       return;
@@ -241,39 +240,40 @@ const handleSubmit = async (isPublished: boolean) => {
               />
             </div>
 
-          {/* NEW: Custom SEO Slug / Search Keywords Field */}
-  <div>
-    <div className="flex justify-between items-center mb-1">
-      <label className="block text-sm font-medium text-slate-700">URL Slug / Search Keywords (SEO URL)</label>
-      {isSlugManual && (
-        <button 
-          type="button" 
-          onClick={() => {
-            setIsSlugManual(false);
-            setForm(prev => ({ ...prev, slug: formatSlug(prev.name) }));
-          }}
-          className="text-xs text-indigo-600 hover:underline"
-        >
-          Reset to auto
-        </button>
-      )}
-    </div>
-    <div className="flex items-center">
-      <span className="bg-slate-100 border border-r-0 border-slate-300 rounded-l-lg px-3 py-2 text-xs text-slate-500 font-mono">
-        theindiaorigin.com/products/
-      </span>
-      <input 
-        type="text" 
-        value={form.slug} 
-        onChange={handleSlugChange} 
-        className="w-full px-4 py-2 border rounded-r-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono" 
-        placeholder="metor-toys-morbi" 
-      />
-    </div>
-    <p className="text-xs text-slate-400 mt-1">
-      Customize this with target keywords, city, or material (e.g., `metor-toys-morbi`).
-    </p>
-  </div>
+            {/* Custom SEO Slug / Search Keywords Field */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-medium text-slate-700">URL Slug / Search Keywords (SEO URL)</label>
+                {isSlugManual && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsSlugManual(false);
+                      setForm(prev => ({ ...prev, slug: formatSlug(prev.name) }));
+                    }}
+                    className="text-xs text-indigo-600 hover:underline"
+                  >
+                    Reset to auto
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center">
+                <span className="bg-slate-100 border border-r-0 border-slate-300 rounded-l-lg px-3 py-2 text-xs text-slate-500 font-mono">
+                  theindiaorigin.com/products/
+                </span>
+                <input 
+                  type="text" 
+                  value={form.slug} 
+                  onChange={handleSlugChange}
+                  onBlur={handleSlugBlur}
+                  className="w-full px-4 py-2 border rounded-r-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono" 
+                  placeholder="metor-toys-morbi" 
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Customize this with target keywords, city, or material (e.g., `metor-toys-morbi`).
+              </p>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Product Description</label>
@@ -286,12 +286,12 @@ const handleSubmit = async (isPublished: boolean) => {
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-<div>
-  <CategorySelector
-    value={form.categoryId}
-    onChange={(categoryId) => setForm({ ...form, categoryId })}
-  />
-</div>
+              <div>
+                <CategorySelector
+                  value={form.categoryId}
+                  onChange={(categoryId) => setForm({ ...form, categoryId })}
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">HS Code</label>
                 <input 
@@ -305,109 +305,109 @@ const handleSubmit = async (isPublished: boolean) => {
             </div>
           </section>
 
-{/* Section B & C: Pricing, MOQ, Tier Pricing */}
-<section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
-  <h2 className="text-lg font-semibold text-slate-900 border-b pb-2">Pricing & Order Details</h2>
-  
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">Base Unit Price (₹) *</label>
-      <input 
-        type="number" 
-        min="0" 
-        required 
-        value={form.minPrice} 
-        onChange={(e) => {
-          const val = e.target.value === "" ? "" : Number(e.target.value);
-          setForm({ ...form, minPrice: val, maxPrice: val });
-        }} 
-        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
-        placeholder="e.g. 561" 
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">Unit *</label>
-      <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm">
-        <option value="Piece">Piece</option>
-        <option value="Kg">Kg</option>
-        <option value="Ton">Ton</option>
-        <option value="Litre">Litre</option>
-        <option value="Meter">Meter</option>
-        <option value="Set">Set</option>
-        <option value="Box">Box</option>
-      </select>
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">MOQ *</label>
-      <input type="number" min="1" required value={form.moq} onChange={(e) => setForm({ ...form, moq: Number(e.target.value) })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-    </div>
-  </div>
+          {/* Section B & C: Pricing, MOQ, Tier Pricing */}
+          <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <h2 className="text-lg font-semibold text-slate-900 border-b pb-2">Pricing & Order Details</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Base Unit Price (₹) *</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  required 
+                  value={form.minPrice} 
+                  onChange={(e) => {
+                    const val = e.target.value === "" ? "" : Number(e.target.value);
+                    setForm({ ...form, minPrice: val });
+                  }} 
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
+                  placeholder="e.g. 561" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Unit *</label>
+                <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm">
+                  <option value="Piece">Piece</option>
+                  <option value="Kg">Kg</option>
+                  <option value="Ton">Ton</option>
+                  <option value="Litre">Litre</option>
+                  <option value="Meter">Meter</option>
+                  <option value="Set">Set</option>
+                  <option value="Box">Box</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">MOQ *</label>
+                <input type="number" min="1" required value={form.moq} onChange={(e) => setForm({ ...form, moq: Number(e.target.value) })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              </div>
+            </div>
 
-  {/* Wholesale Tier Pricing (Min 1, Max 3 Tiers) */}
-  <div className="space-y-3">
-    <div className="flex justify-between items-center">
-      <div>
-        <label className="block text-sm font-medium text-slate-700">Wholesale Tier Pricing</label>
-        <p className="text-xs text-slate-400">Add 1 to 3 pricing tiers for volume discounts</p>
-      </div>
-      {form.priceTiers.length < 3 && (
-        <button 
-          type="button" 
-          onClick={() => {
-            if (form.priceTiers.length < 3) addTier();
-          }} 
-          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-        >
-          <Plus className="w-3 h-3"/> Add Tier ({form.priceTiers.length}/3)
-        </button>
-      )}
-    </div>
+            {/* Wholesale Tier Pricing (Min 1, Max 3 Tiers) */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Wholesale Tier Pricing</label>
+                  <p className="text-xs text-slate-400">Add 1 to 3 pricing tiers for volume discounts</p>
+                </div>
+                {form.priceTiers.length < 3 && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (form.priceTiers.length < 3) addTier();
+                    }} 
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3"/> Add Tier ({form.priceTiers.length}/3)
+                  </button>
+                )}
+              </div>
 
-    {form.priceTiers.length === 0 && (
-      <button
-        type="button"
-        onClick={addTier}
-        className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-xs font-medium text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors"
-      >
-        + Add First Price Tier (Required)
-      </button>
-    )}
+              {form.priceTiers.length === 0 && (
+                <button
+                  type="button"
+                  onClick={addTier}
+                  className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-xs font-medium text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors"
+                >
+                  + Add First Price Tier (Required)
+                </button>
+              )}
 
-    {form.priceTiers.map((tier, i) => (
-      <div key={i} className="flex gap-4 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-        <div className="flex-1">
-          <label className="text-xs text-slate-500 block mb-1">Min Quantity</label>
-          <input 
-  type="number" 
-  min="1" 
-  value={tier.minQty} 
-  onChange={(e) => {
-    const val = e.target.value === "" ? "" : Number(e.target.value);
-    updateTier(i, "minQty", val);
-  }} 
-  className="w-full px-3 py-1 border rounded text-sm" 
-/>
-        </div>
-        <div className="flex-1">
-          <label className="text-xs text-slate-500 block mb-1">Price per unit (₹)</label>
-<input 
-  type="number" 
-  min="0" 
-  value={tier.price} 
-  onChange={(e) => {
-    const val = e.target.value === "" ? "" : Number(e.target.value);
-    updateTier(i, "price", val);
-  }} 
-  className="w-full px-3 py-1 border rounded text-sm" 
-/>
-        </div>
-        {form.priceTiers.length > 1 && (
-          <button type="button" onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 mt-5"><Trash2 className="w-4 h-4" /></button>
-        )}
-      </div>
-    ))}
-  </div>
-</section>
+              {form.priceTiers.map((tier, i) => (
+                <div key={i} className="flex gap-4 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div className="flex-1">
+                    <label className="text-xs text-slate-500 block mb-1">Min Quantity</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      value={tier.minQty} 
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? "" : Number(e.target.value);
+                        updateTier(i, "minQty", val);
+                      }} 
+                      className="w-full px-3 py-1 border rounded text-sm" 
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-slate-500 block mb-1">Price per unit (₹)</label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      value={tier.price} 
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? "" : Number(e.target.value);
+                        updateTier(i, "price", val);
+                      }} 
+                      className="w-full px-3 py-1 border rounded text-sm" 
+                    />
+                  </div>
+                  {form.priceTiers.length > 1 && (
+                    <button type="button" onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 mt-5"><Trash2 className="w-4 h-4" /></button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
 
           {/* Section D: Product Specifications */}
           <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
@@ -464,19 +464,19 @@ const handleSubmit = async (isPublished: boolean) => {
             <h2 className="text-lg font-semibold text-slate-900 border-b pb-2">Media & Assets</h2>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Product Images</label>
-    <Uploader
-  folder="products"
-  label="Upload Image"
-  onUploadComplete={(url) =>
-    setForm((prev) => ({
-      ...prev,
-      images: [
-        ...prev.images,
-        ...(Array.isArray(url) ? url : [url]),
-      ],
-    }))
-  }
-/>
+              <Uploader
+                folder="products"
+                label="Upload Image"
+                onUploadComplete={(url) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    images: [
+                      ...prev.images,
+                      ...(Array.isArray(url) ? url : [url]),
+                    ],
+                  }))
+                }
+              />
               <div className="flex flex-wrap gap-2 mt-3">
                 {form.images.map((img, i) => (
                   <div key={i} className="relative group">
