@@ -25,7 +25,6 @@ export default function NewProductPage() {
     categoryId: "",
     hsCode: "",
     minPrice: "" as number | "",
-    minPrice: "" as number | "",
     unit: "Piece",
     moq: 1,
     is_sample_available: false,
